@@ -1,0 +1,6 @@
+Tarefa 2: Coeficiente de agrupamento
+
+Implemente um algoritmo para calcular o coeficiente de agrupamento local e 
+global de redes síncronas não-direcionadas conectadas. Ao término da execução, 
+cada nó deve atribuir o coeficiente de agrupamento local e global a variáveis 
+locais coefLocal e coefGlobal.

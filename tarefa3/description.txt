@@ -1,0 +1,8 @@
+Tarefa 3: Conjunto independente máximo
+
+Implemente um algoritmo para calcular um conjunto independente máximo (qualquer)
+em redes síncronas não-direcionadas conectadas. Ao término da execução, cada nó 
+deve atribuir os números 1 ou 0 para uma variável local independentSet, se o nó 
+estiver ou não no conjunto independente máximo, respectivamente. Sua solução 
+deve ter complexidade O(log n) rodadas, onde n é o número de nós na rede. (O 
+livro-texto descreve uma solução com essa complexidade.)

@@ -1,0 +1,6 @@
+Tarefa 1: Cálculo do número de nós e diâmetro da rede
+
+Implemente um algoritmo para calcular o número de nós e o diâmetro de redes 
+síncronas não-direcionadas conectadas. Ao término da execução, um nó deve 
+conhecer o número de nós na rede e o seu diâmetro nas variáveis locais 
+totalNodes e netDiameter (essas variáveis devem ser mostradas no nó).
