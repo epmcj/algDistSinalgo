@@ -65,7 +65,7 @@
 		<!--  Random number generators                                             -->
 		<!--***********************************************************************-->
 		<!--If set to true, the random number generators of the framework use the same seed as in the previous run.-->
-		<useSameSeedAsInPreviousRun value="true" />
+		<useSameSeedAsInPreviousRun value="false" />
 
 		<!--If set to true, and useSameSeedAsInPreviousRun is set to false,  the random number generators of the framework uses the specified fixed seed.-->
 		<useFixedSeed value="false" />
@@ -125,7 +125,7 @@
 		<useMap value="false" />
 
 		<!--In 2D, the background can be colored depending on a map file. This field contains the file name for this map, which is supposed to be located in the source folder of the current project. The map is only painted if useMap is set to true.-->
-		<map value="images/map.jpg" />
+		<map value="" />
 
 		<!--***********************************************************************-->
 		<!--  Models                                                               -->
@@ -225,28 +225,11 @@
 
 	</Framework>
 	<Custom>
-<MessageTransmission ConstantTime="1"/>
-	
-<Node defaultSize="10" />
-
-<GeometricNodeCollection rMax="1000"/>
-
-<UDG rMax="100"/>
-
-<SINR alpha="2" beta="0.7" noise="0"/>
-
-<RandomWayPoint>
-	<Speed distribution="Gaussian" mean="10" variance="20" />
-	<WaitingTime distribution="Poisson" lambda="10" />
-</RandomWayPoint>
-
-<RandomDirection>
-	<NodeSpeed distribution="Gaussian" mean="10" variance="20" />
-	<WaitingTime distribution="Poisson" lambda="10" />
-	<MoveTime distribution="Uniform" min="5" max="20" />
-</RandomDirection>
-
-<QUDG rMin="30" rMax="50" ProbabilityType="constant" connectionProbability="0.6"/>
-					</Custom>
+		<MessageTransmission constantTime="1"/>
+		<Node defaultSize="2" />
+		
+		<GeometricNodeCollection rMax="1000"/>
+		<UDG rMax="100"/>
+			</Custom>
 </Document>
 

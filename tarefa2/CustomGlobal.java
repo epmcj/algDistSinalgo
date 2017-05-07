@@ -64,11 +64,16 @@ import sinalgo.runtime.AbstractCustomGlobal;
  */
 public class CustomGlobal extends AbstractCustomGlobal{
 	
+	public static boolean finishThisRound = true;
+	
 	/* (non-Javadoc)
 	 * @see runtime.AbstractCustomGlobal#hasTerminated()
 	 */
 	public boolean hasTerminated() {
-		return false;
+		// Will finish only when all nodes have finished.
+		boolean answer = CustomGlobal.finishThisRound;
+		CustomGlobal.finishThisRound = true; // For next round if necessary.
+		return answer; 
 	}
 
 	/**

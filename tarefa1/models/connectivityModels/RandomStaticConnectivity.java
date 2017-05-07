@@ -11,12 +11,13 @@ import sinalgo.tools.logging.Logging;
 
 public class RandomStaticConnectivity extends ConnectivityModelHelper {
 
-	Logging log = Logging.getLogger("t1_log.txt");
+	Logging log = Logging.getLogger("t3_log.txt");
 	
 	@Override
 	protected boolean isConnected(Node from, Node to) {
 		
 		MessageDigest m;
+		int ans;
 		int min = Math.min(from.ID, to.ID);
 		int max = Math.max(from.ID, to.ID);
 		try {
@@ -27,10 +28,11 @@ public class RandomStaticConnectivity extends ConnectivityModelHelper {
 			m.update(BigInteger.valueOf(min).toByteArray());
 			m.update(BigInteger.valueOf(max).toByteArray());
 			
-			if ((m.digest()[0] % 5) == 0)
+			ans = (m.digest()[0] % 5);
+			if (ans == 0)
 				log.logln(LogL.ALWAYS, from.ID + " is Connected to " + to.ID);
 			
-			return (m.digest()[0] % 5) == 0;
+			return (ans == 0);
 		} catch (NoSuchAlgorithmException e) {
 			e.printStackTrace();
 			return false;

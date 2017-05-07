@@ -2,10 +2,10 @@ package projects.tarefa2.nodes.nodeImplementations;
 
 import java.awt.Color;
 import java.awt.Graphics;
+import java.util.HashSet;
 
-import projects.defaultProject.nodes.timers.MessageTimer;
-import projects.tarefa1.nodes.messages.T1Message;
 import projects.tarefa2.nodes.messages.T2Message;
+import projects.tarefa2.CustomGlobal;
 import sinalgo.configuration.WrongConfigurationException;
 import sinalgo.gui.transformation.PositionTransformation;
 import sinalgo.nodes.Node;
@@ -15,19 +15,78 @@ import sinalgo.tools.logging.LogL;
 import sinalgo.tools.logging.Logging;
 
 public class T2Node extends Node{	
+	
+	public float coefLocal;
+	public float coefGlobal;
+	public HashSet<Integer> neighborsID;
+	public int phase;
+	public boolean isActive;
 		
 	Logging log = Logging.getLogger("t2_log.txt");
 
 	@Override
 	public void handleMessages(Inbox inbox) {
+		Message temp;
+		T2Message msg;
+		
+		if (this.isActive) {
+			switch (this.phase) {
+				// Just broadcasts its ID for neighborhood discovery.
+				case 0:
+					this.broadcast(new T2Message(this));
+					this.phase++;
+					break;
+					
+				// Discovers its neighborhood and broadcasts it.
+				case 1:
+					while (inbox.hasNext()) {
+						temp = inbox.next();
+						if (!(temp instanceof T2Message)) 
+							throw new RuntimeException("Unknown message type");
 						
-		while (inbox.hasNext()) {
-			Message temp = inbox.next();
-			if (!(temp instanceof T1Message)) 
-				throw new RuntimeException("Unknown message type");
+						msg = (T2Message) temp;
+						this.neighborsID.add(msg.getSrcID());
+					}
+					this.broadcast(new T2Message(this));
+					this.phase++;
+					break;
+					
+				// Calculates the local clustering coefficient. 
+				case 2:
+					float connections = 0;
+					while (inbox.hasNext()) {
+						temp = inbox.next();
+						if (!(temp instanceof T2Message)) 
+							throw new RuntimeException("Unknown message type");
+						
+						msg = (T2Message) temp;
+						for (Integer nid: msg.getSrcNeighbors()) {
+							if (this.neighborsID.contains(nid))
+								connections++;
+						}
+					}
+					
+					float maxConn = (float) (this.neighborsID.size() * 
+											(this.neighborsID.size() - 1));
 			
-			T2Message msg = (T2Message) temp;
-			
+					if (maxConn != 0)
+						this.coefLocal = connections / maxConn;
+					else 
+						this.coefGlobal = 0;
+					
+					log.logln(LogL.ALWAYS, "Node " + this.ID + " - LCC: " 
+											+ this.coefLocal);
+					
+					this.phase++;
+					break;
+					
+				// Calculates the global clustering coefficient.
+				case 3:
+					
+					break;
+				default:
+					throw new RuntimeException("Unknown phase");
+			}			
 		}
 	}
 
@@ -37,9 +96,10 @@ public class T2Node extends Node{
 
 	@Override
 	public void init() {
-		/*MessageTimer timer = new MessageTimer(
-		new T1Message(this.nodesDiscovered, this.ID));
-		timer.startRelative(1, this);*/
+		this.neighborsID = new HashSet<Integer>();
+		this.coefLocal 	 = this.coefGlobal = -1;
+		this.isActive 	 = true;
+		this.phase 		 = 0;
 	}
 
 	@Override
@@ -48,6 +108,7 @@ public class T2Node extends Node{
 
 	@Override
 	public void postStep() {	
+		CustomGlobal.finishThisRound &= !this.isActive;
 	}
 
 	@Override
@@ -55,10 +116,19 @@ public class T2Node extends Node{
 	}
 			
 	public void draw(Graphics g, PositionTransformation pt, boolean highlight) {
-		this.setColor(Color.BLUE);
+		if (this.isActive)
+			this.setColor(Color.BLUE);
+		else
+			this.setColor(Color.LIGHT_GRAY);
 		
-		//int num_nodes = this.nodesDiscovered.size();
-		String text = " " + Integer.toString(this.ID) + ": ";
+		String clocal = (this.coefLocal < 0) ? "?" : 
+								String.format("%.3f", this.coefLocal);
+		
+		String cglobal = (this.coefGlobal < 0) ? "?" : 
+								String.format("%.3f", this.coefGlobal);
+		
+		String text = " " + Integer.toString(this.ID) + ": "
+						  +  clocal + " | " +  cglobal + " ";
 		
 		// draw the node as a circle with the text inside
 		super.drawNodeAsDiskWithText(g, pt, highlight, text, 28, Color.WHITE);
