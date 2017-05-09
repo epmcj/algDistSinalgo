@@ -5,20 +5,22 @@ import java.util.HashSet;
 import projects.tarefa2.nodes.nodeImplementations.T2Node;
 import sinalgo.nodes.messages.Message;
 
-public class T2Message extends Message{
+public class T2DiscoveryMessage extends Message{
 	
-	private T2Node src;
+	public HashSet<Integer> nodes;
+	public int srcID;
 	
-	public T2Message(T2Node src) {
-		this.src = src;
+	public T2DiscoveryMessage(T2Node src) {
+		this.srcID = src.ID;
+		this.nodes = new HashSet<Integer>(src.neighborsID);
 	}
 	
 	public int getSrcID() {
-		return this.src.ID;
+		return this.srcID;
 	}
 	
 	public HashSet<Integer> getSrcNeighbors() {
-		return this.src.neighborsID;
+		return this.nodes;
 	}
 	
 	@Override

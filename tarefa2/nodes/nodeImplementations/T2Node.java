@@ -4,7 +4,8 @@ import java.awt.Color;
 import java.awt.Graphics;
 import java.util.HashSet;
 
-import projects.tarefa2.nodes.messages.T2Message;
+import projects.tarefa2.nodes.messages.T2DiscoveryMessage;
+import projects.tarefa2.nodes.messages.T2FloodingMessage;
 import projects.tarefa2.CustomGlobal;
 import sinalgo.configuration.WrongConfigurationException;
 import sinalgo.gui.transformation.PositionTransformation;
@@ -19,6 +20,7 @@ public class T2Node extends Node{
 	public float coefLocal;
 	public float coefGlobal;
 	public HashSet<Integer> neighborsID;
+	public HashSet<T2FloodingMessage> msgCoefRcvd;
 	public int phase;
 	public boolean isActive;
 		
@@ -27,13 +29,14 @@ public class T2Node extends Node{
 	@Override
 	public void handleMessages(Inbox inbox) {
 		Message temp;
-		T2Message msg;
+		T2DiscoveryMessage msg1;
+		T2FloodingMessage  msg2;
 		
 		if (this.isActive) {
 			switch (this.phase) {
 				// Just broadcasts its ID for neighborhood discovery.
 				case 0:
-					this.broadcast(new T2Message(this));
+					this.broadcast(new T2DiscoveryMessage(this));
 					this.phase++;
 					break;
 					
@@ -41,13 +44,13 @@ public class T2Node extends Node{
 				case 1:
 					while (inbox.hasNext()) {
 						temp = inbox.next();
-						if (!(temp instanceof T2Message)) 
+						if (!(temp instanceof T2DiscoveryMessage)) 
 							throw new RuntimeException("Unknown message type");
 						
-						msg = (T2Message) temp;
-						this.neighborsID.add(msg.getSrcID());
+						msg1 = (T2DiscoveryMessage) temp;
+						this.neighborsID.add(msg1.getSrcID());
 					}
-					this.broadcast(new T2Message(this));
+					this.broadcast(new T2DiscoveryMessage(this));
 					this.phase++;
 					break;
 					
@@ -56,32 +59,63 @@ public class T2Node extends Node{
 					float connections = 0;
 					while (inbox.hasNext()) {
 						temp = inbox.next();
-						if (!(temp instanceof T2Message)) 
+						if (!(temp instanceof T2DiscoveryMessage)) 
 							throw new RuntimeException("Unknown message type");
 						
-						msg = (T2Message) temp;
-						for (Integer nid: msg.getSrcNeighbors()) {
+						msg1 = (T2DiscoveryMessage) temp;
+						for (Integer nid: msg1.getSrcNeighbors()) {
 							if (this.neighborsID.contains(nid))
 								connections++;
 						}
 					}
 					
+					// Max number of connections between the neighbors.
 					float maxConn = (float) (this.neighborsID.size() * 
 											(this.neighborsID.size() - 1));
 			
+					// Avoiding division by zero.
 					if (maxConn != 0)
 						this.coefLocal = connections / maxConn;
 					else 
-						this.coefGlobal = 0;
+						this.coefLocal = 0;
 					
 					log.logln(LogL.ALWAYS, "Node " + this.ID + " - LCC: " 
 											+ this.coefLocal);
+					
+					// Starting the spreading of the local coefficient.
+					msg2 = new T2FloodingMessage(this);
+					this.msgCoefRcvd.add(msg2);
+					this.broadcast(msg2);
 					
 					this.phase++;
 					break;
 					
 				// Calculates the global clustering coefficient.
 				case 3:
+					boolean newInfo = false;
+					
+					while (inbox.hasNext()) {
+						temp = inbox.next();
+						if (!(temp instanceof T2FloodingMessage)) 
+							throw new RuntimeException("Unknown message type");
+						
+						msg2 = (T2FloodingMessage) temp;
+						if (!this.msgCoefRcvd.contains(msg2)) {
+							newInfo = true;
+							this.msgCoefRcvd.add(msg2);
+							this.broadcast(msg2);
+						}
+					}
+					
+					// Already received messages from all nodes.
+					if (!newInfo) {
+						for (T2FloodingMessage msgRcvd : this.msgCoefRcvd) {
+							this.coefGlobal += msgRcvd.getLocalCoef();
+						}
+						
+						this.coefGlobal /= (float) this.msgCoefRcvd.size();
+						this.isActive = false;
+					}
 					
 					break;
 				default:
@@ -97,7 +131,8 @@ public class T2Node extends Node{
 	@Override
 	public void init() {
 		this.neighborsID = new HashSet<Integer>();
-		this.coefLocal 	 = this.coefGlobal = -1;
+		this.msgCoefRcvd = new HashSet<T2FloodingMessage>();
+		this.coefLocal 	 = this.coefGlobal = 0;
 		this.isActive 	 = true;
 		this.phase 		 = 0;
 	}
