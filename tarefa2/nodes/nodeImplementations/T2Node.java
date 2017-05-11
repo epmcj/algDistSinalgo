@@ -22,7 +22,7 @@ public class T2Node extends Node{
 	public HashSet<Integer> neighborsID;
 	public HashSet<T2FloodingMessage> msgCoefRcvd;
 	public int phase;
-	public boolean isActive;
+	public boolean isAwake;
 		
 	Logging log = Logging.getLogger("t2_log.txt");
 
@@ -32,7 +32,7 @@ public class T2Node extends Node{
 		T2DiscoveryMessage msg1;
 		T2FloodingMessage  msg2;
 		
-		if (this.isActive) {
+		if (this.isAwake) {
 			switch (this.phase) {
 				// Just broadcasts its ID for neighborhood discovery.
 				case 0:
@@ -82,8 +82,10 @@ public class T2Node extends Node{
 					log.logln(LogL.ALWAYS, "Node " + this.ID + " - LCC: " 
 											+ this.coefLocal);
 					
-					// Starting the spreading of the local coefficient.
-					msg2 = new T2FloodingMessage(this);
+					
+					// Starting the spreading the local information.
+					msg2 = new T2FloodingMessage(this, (int)connections, 
+												 	(int)maxConn);
 					this.msgCoefRcvd.add(msg2);
 					this.broadcast(msg2);
 					
@@ -109,12 +111,20 @@ public class T2Node extends Node{
 					
 					// Already received messages from all nodes.
 					if (!newInfo) {
+						float nClosedTri = 0;
+						float totalTri   = 0;
+						
 						for (T2FloodingMessage msgRcvd : this.msgCoefRcvd) {
-							this.coefGlobal += msgRcvd.getLocalCoef();
+							nClosedTri += (float)msgRcvd.getLocalNumClosedTri();
+							totalTri   += (float)msgRcvd.getLocalNumTri();
 						}
 						
-						this.coefGlobal /= (float) this.msgCoefRcvd.size();
-						this.isActive = false;
+						if (totalTri != 0)
+							this.coefGlobal = nClosedTri/totalTri;
+						else 
+							this.coefGlobal = 0;
+						
+						this.isAwake = false;
 					}
 					
 					break;
@@ -132,8 +142,8 @@ public class T2Node extends Node{
 	public void init() {
 		this.neighborsID = new HashSet<Integer>();
 		this.msgCoefRcvd = new HashSet<T2FloodingMessage>();
-		this.coefLocal 	 = this.coefGlobal = 0;
-		this.isActive 	 = true;
+		this.coefLocal 	 = this.coefGlobal = -1;
+		this.isAwake 	 = true;
 		this.phase 		 = 0;
 	}
 
@@ -143,7 +153,7 @@ public class T2Node extends Node{
 
 	@Override
 	public void postStep() {	
-		CustomGlobal.finishThisRound &= !this.isActive;
+		CustomGlobal.finishThisRound &= !this.isAwake;
 	}
 
 	@Override
@@ -151,18 +161,18 @@ public class T2Node extends Node{
 	}
 			
 	public void draw(Graphics g, PositionTransformation pt, boolean highlight) {
-		if (this.isActive)
+		if (this.isAwake)
 			this.setColor(Color.BLUE);
 		else
 			this.setColor(Color.LIGHT_GRAY);
 		
 		String clocal = (this.coefLocal < 0) ? "?" : 
-								String.format("%.3f", this.coefLocal);
+								String.format("%.2f", this.coefLocal);
 		
 		String cglobal = (this.coefGlobal < 0) ? "?" : 
-								String.format("%.3f", this.coefGlobal);
+								String.format("%.2f", this.coefGlobal);
 		
-		String text = " " + Integer.toString(this.ID) + ": "
+		String text = " " //+ Integer.toString(this.ID) + ": "
 						  +  clocal + " | " +  cglobal + " ";
 		
 		// draw the node as a circle with the text inside
@@ -171,6 +181,13 @@ public class T2Node extends Node{
 	
 	@Override
 	public String toString() {
-		return "Node ID: " + this.ID;
+		String clocal = (this.coefLocal < 0) ? "?" : 
+			String.format("%.2f", this.coefLocal);
+
+		String cglobal = (this.coefGlobal < 0) ? "?" : 
+			String.format("%.2f", this.coefGlobal);
+		
+		return "Node ID: " + this.ID + "\ncoefLocal: " + clocal
+				+ "\ncoefGlobal: " + cglobal;
 	}
 }

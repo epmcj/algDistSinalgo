@@ -138,7 +138,9 @@ public class T3Node extends Node{
 	
 	@Override
 	public String toString() {
-		return "Node ID: " + this.ID;
+		String text = (this.independentSet == -1) ? "?" :
+						((this.independentSet == 1) ? "Y " : "N ");
+		return "Node ID: " + this.ID + "\nindependentSet: " + text;
 	}
 }
 

@@ -80,8 +80,8 @@ public class T1Node extends Node{
 								throw new RuntimeException("Unknown message type");					
 							msg = (T1Message) temp;
 							
-							if (msg.getNetDiameter() > this.netDiameter)
-								this.netDiameter = msg.getNetDiameter();
+							if (msg.getSrcMaxDist() > this.netDiameter)
+								this.netDiameter = msg.getSrcMaxDist();
 						}
 						
 						this.broadcast(new T1Message(this));

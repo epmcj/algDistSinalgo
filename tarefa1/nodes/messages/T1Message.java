@@ -9,12 +9,12 @@ public class T1Message extends Message{
 	
 	public HashSet<Integer> nodes;
 	public int srcID;
-	public int diameter;
+	public int maxDist;
 	
 	public T1Message(T1Node src) {
 		this.srcID = src.ID;
 		this.nodes = new HashSet<Integer>(src.nodesDiscovered);
-		this.diameter = src.netDiameter;
+		this.maxDist = src.netDiameter;
 	}
 	
 	public HashSet<Integer> getNodesDiscovered() {
@@ -25,8 +25,8 @@ public class T1Message extends Message{
 		return this.srcID;
 	}
 	
-	public int getNetDiameter() {
-		return this.diameter;
+	public int getSrcMaxDist() {
+		return this.maxDist;
 	}
 	
 	@Override

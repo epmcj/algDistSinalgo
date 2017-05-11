@@ -226,7 +226,7 @@
 	</Framework>
 	<Custom>
 		<MessageTransmission constantTime="1"/>
-		<Node defaultSize="2" />
+		<Node defaultSize="15" />
 		
 		<GeometricNodeCollection rMax="1000"/>
 		<UDG rMax="100"/>
