@@ -4,12 +4,13 @@ import projects.ghs.nodes.edges.WeightedBidirectionalEdge;
 import projects.ghs.nodes.nodeImplementations.GHSNode;
 import sinalgo.nodes.Node;
 import sinalgo.nodes.timers.Timer;
-import sinalgo.tools.statistics.UniformDistribution;
+//import sinalgo.tools.statistics.UniformDistribution;
 
 public class StartTimer extends Timer{
 	
 	public void set(Node node) {
-		this.startAbsolute(UniformDistribution.nextUniform(0.1, 1.5), node);
+		//UniformDistribution.nextUniform(0.1, 1.5)
+		this.startAbsolute(0.01, node);
 	}
 	
 	@Override

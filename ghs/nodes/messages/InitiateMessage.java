@@ -4,20 +4,15 @@ import projects.ghs.aux.ComponentID;
 import projects.ghs.nodes.nodeImplementations.GHSNode;
 import sinalgo.nodes.messages.Message;
 
-public class InitiateMessage extends Message {
+public class InitiateMessage extends BasicMessage {
 
 	public ComponentID cid;
-	public GHSNode src;
 	
 	public InitiateMessage(ComponentID cid, GHSNode src) {
+		super(src);
 		this.cid = cid;
-		this.src = src;
 	}
 	
-	public int get_srcID() {
-		return src.ID;
-	}
-
 	@Override
 	public Message clone() {
 		return this;

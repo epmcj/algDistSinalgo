@@ -1,16 +1,14 @@
 package projects.ghs.nodes.messages;
 
-import projects.ghs.aux.ComponentID;
 import projects.ghs.nodes.nodeImplementations.GHSNode;
 import sinalgo.nodes.messages.Message;
 
-public class TestMessage extends BasicMessage {
+public class BasicMessage extends Message{
 	
-	public ComponentID cid;
+	public GHSNode src;
 	
-	public TestMessage(ComponentID cid, GHSNode src) {
-		super(src);
-		this.cid = cid;
+	public BasicMessage(GHSNode src){
+		this.src = src;
 	}
 	
 	public int get_srcID() {
@@ -21,5 +19,4 @@ public class TestMessage extends BasicMessage {
 	public Message clone() {
 		return this;
 	}
-
 }
