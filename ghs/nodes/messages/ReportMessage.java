@@ -6,11 +6,16 @@ import sinalgo.nodes.messages.Message;
 
 public class ReportMessage extends BasicMessage{
 
-	public WeightedBidirectionalEdge mwoe_candidate;
+	public double min_weight;
+	
+	public ReportMessage(double min_weight, GHSNode src) {
+		super(src);
+		this.min_weight = min_weight;
+	}
 	
 	public ReportMessage(WeightedBidirectionalEdge mwoe_candidate, GHSNode src) {
 		super(src);
-		this.mwoe_candidate = mwoe_candidate;
+		this.min_weight = mwoe_candidate.weight;
 	}
 	
 	@Override

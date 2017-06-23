@@ -1,16 +1,15 @@
 package projects.ghs.nodes.messages;
 
-import projects.ghs.aux.ComponentID;
 import projects.ghs.nodes.nodeImplementations.GHSNode;
 import sinalgo.nodes.messages.Message;
 
 public class ChangeRootMessage extends BasicMessage {
 	
-	public ComponentID cid;
+	public double mwoe;
 	
-	public ChangeRootMessage(ComponentID cid, GHSNode src) {
+	public ChangeRootMessage(double mwoe, GHSNode src) {
 		super(src);
-		this.cid = cid;
+		this.mwoe = mwoe;
 	}
 
 	@Override

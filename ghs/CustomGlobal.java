@@ -76,7 +76,7 @@ public class CustomGlobal extends AbstractCustomGlobal{
 	 * Initializes the simulation.
 	 */
 	public void preRun() {
-		int numNodes = 20;
+		int numNodes = 5;
 		String nodeTypeName = "ghs:GHSNode";
 		String distributionModelName = "Random";
 		

@@ -6,11 +6,19 @@ import sinalgo.nodes.messages.Message;
 
 public class ConnectMessage extends BasicMessage {
 
-	public WeightedBidirectionalEdge mwoe;
+	public int level;
+	public double edge_weight;
 	
-	public ConnectMessage(WeightedBidirectionalEdge mwoe, GHSNode src) {
+	public ConnectMessage(int level, double edge_weight, GHSNode src) {
 		super(src);
-		this.mwoe = mwoe;
+		this.level = level;
+		this.edge_weight = edge_weight;
+	}
+	
+	public ConnectMessage(int level, WeightedBidirectionalEdge edge, GHSNode src) {
+		super(src);
+		this.level = level;
+		this.edge_weight = edge.weight;
 	}
 	
 	@Override
