@@ -18,7 +18,7 @@ public class StartTimer extends Timer{
 		GHSNode node = (GHSNode) this.node;
 		WeightedBidirectionalEdge edge;
 		
-		node.real_init();
+		node.wake_up();
 		
 		System.out.println("Node " + node.ID);
 		for (int i=0; i < node.edge_list.length; i++) {

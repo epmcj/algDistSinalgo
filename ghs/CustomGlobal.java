@@ -38,10 +38,12 @@ package projects.ghs;
 
 
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 
 import javax.swing.JOptionPane;
 
+import projects.ghs.nodes.nodeImplementations.GHSNode;
 import sinalgo.nodes.Node;
 import sinalgo.runtime.AbstractCustomGlobal;
 import sinalgo.tools.Tools;
@@ -70,23 +72,31 @@ import sinalgo.tools.Tools;
 public class CustomGlobal extends AbstractCustomGlobal{
 	
 	public static List<List<Node>> connections;
+	public static List<Double> edge_weights;
 	public static double prob = 0.3;
 	
 	/*
 	 * Initializes the simulation.
 	 */
 	public void preRun() {
-		int numNodes = 5;
+		int numNodes = 15;
 		String nodeTypeName = "ghs:GHSNode";
-		String distributionModelName = "Random";
+		String distributionModelName = "Circle";
 		
 		Tools.generateNodes(numNodes, nodeTypeName, distributionModelName);
+		
+		CustomGlobal.edge_weights = new ArrayList<Double>(); // for unique weights.		
 		
 		CustomGlobal.connections = new ArrayList<List<Node>>();
 		for (int i = 0; i < numNodes; i++)
 			CustomGlobal.connections.add(new ArrayList<Node>());
-			
-		Tools.reevaluateConnections();				
+		
+		Tools.reevaluateConnections();
+		
+		// Initiate nodes after the connections.
+		Enumeration<Node> nodes = Tools.getNodeList().getNodeEnumeration();
+		while (nodes.hasMoreElements())
+			((GHSNode) nodes.nextElement()).wake_up();
 	}
 	
 	

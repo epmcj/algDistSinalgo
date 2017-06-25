@@ -50,10 +50,10 @@
 		<!--  Random number generators                                             -->
 		<!--***********************************************************************-->
 		<!--If set to true, the random number generators of the framework use a fixed seed.-->
-		<useFixedSeed value="false" />
+		<useFixedSeed value="true" />
 
 		<!--The seed to be used by the random number generators if useFixedSeed is set to true.-->
-		<fixedSeed value="77654767234" />
+		<fixedSeed value="77654767235" />
 
 		<!--***********************************************************************-->
 		<!--  Logging                                                              -->

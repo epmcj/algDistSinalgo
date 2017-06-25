@@ -27,148 +27,158 @@ import sinalgo.tools.logging.Logging;
 
 public class GHSNode extends Node{
 	
+	public List<Message> sec_inbox;
+	
 	public ComponentID cid;
 	public WeightedBidirectionalEdge[] edge_list;
 	public EdgeStatus[] status;
 	public boolean isLeader;
 	public NodeState state;
+	public int find_count;
+	public boolean isTesting;
+	public int i_best_edge;
 	
-	public int index_testing_edge;
-	public GHSNode best_node;
-	public double edge_to_conn;
+	public int i_testing_edge;
+	public GHSNode in_node;
 	public double min_weight;
-
-	public List<Integer> wait_list;
-	public List<GHSNode> best_nodes;
-	public List<TestMessage> test_queue;
-	public List<ConnectMessage> conn_queue;
 	
 	Logging log = Logging.getLogger("ghs_log.txt");
 
 	@Override
 	public void handleMessages(Inbox inbox) {
+		Message msg;
+		boolean check_sec = !this.sec_inbox.isEmpty();
+		
 		while(inbox.hasNext()) {
-			Message msg = inbox.next();
+			msg = inbox.next();
 			
 			System.out.println("Node " + this.ID + " received a " + 
 							   msg.getClass().getSimpleName() + " from Node " +
 							   ((BasicMessage)msg).get_srcID());
 			
-			if (msg instanceof InitiateMessage) {
-				this.handleInitMessage((InitiateMessage)msg);
-				
-			} else if (msg instanceof ReportMessage) {
-				this.handleReportMessage((ReportMessage)msg);
-				
-			} else if (msg instanceof TestMessage) {
-				this.handleTestMessage((TestMessage) msg);
-				
-			} else if (msg instanceof ConnectMessage) {
-				this.handleConnectMessage((ConnectMessage) msg);
-				
-			} else if (msg instanceof AnswerMessage) {
-				this.handleAnswerMessage((AnswerMessage)msg);
-				
-			} else if (msg instanceof ChangeRootMessage) {
-				this.handleCRMessage((ChangeRootMessage) msg);
+			this.handleMessage(msg);
+		}
+		
+		if (check_sec) {
+			List<Message> temp_inbox = new ArrayList<Message>();
+			
+			while (!this.sec_inbox.isEmpty())
+				temp_inbox.add(this.sec_inbox.remove(0));
+			
+			while (!temp_inbox.isEmpty()) {
+				msg = temp_inbox.remove(0);
+				System.out.println("Node " + this.ID + " received *again* a " +
+						   msg.getClass().getSimpleName() + " from Node " +
+						   ((BasicMessage)msg).get_srcID());
+				this.handleMessage(msg);
 			}
 		}
 		
+	}
+	
+	public void handleMessage(Message msg) {
+		if (msg instanceof InitiateMessage) {
+			this.handleInitMessage((InitiateMessage)msg);
+			
+		} else if (msg instanceof ReportMessage) {
+			this.handleReportMessage((ReportMessage)msg);
+			
+		} else if (msg instanceof TestMessage) {
+			this.handleTestMessage((TestMessage) msg);
+			
+		} else if (msg instanceof ConnectMessage) {
+			this.handleConnectMessage((ConnectMessage) msg);
+			
+		} else if (msg instanceof AnswerMessage) {
+			this.handleAnswerMessage((AnswerMessage)msg);
+			
+		} else if (msg instanceof ChangeRootMessage) {
+			this.handleCRMessage((ChangeRootMessage) msg);
+		}
 	}
 			
 	/**
 	 * 
 	 * @param msg
 	 */
-	private void handleInitMessage(InitiateMessage msg) {			
-		// Updating component id.
-		this.cid = msg.cid;	
+	private void handleInitMessage(InitiateMessage msg) {	
+		Node node;
 		
-		this.checkTestQueue();
-		this.checkConnQueue();
+		this.changeCompID(msg.cid);
+		this.state		 = msg.state;
+		this.in_node 	 = msg.src; 			
+		this.i_best_edge = -1;
+		this.min_weight  = Double.POSITIVE_INFINITY;	
 		
 		// Forwarding the message.
-		for (GHSNode node : this.best_nodes) {
-			if (node.ID != msg.get_srcID()) {
-				this.send(new InitiateMessage(msg.cid, this), node);
-				this.wait_list.add(node.ID);
+		for (int i = 0; i < this.edge_list.length; i++) {
+			if (this.status[i] == EdgeStatus.BRANCH) {
+				node = this.edge_list[i].endNode;
+				if (node.ID != msg.get_srcID()) {
+					this.sendMsg(new InitiateMessage(msg.cid, this), node);
+					
+					if (this.state == NodeState.FIND)
+						this.find_count++;
+				}
 			}
 		}
 		
-		if (msg.state == NodeState.FIND) {
-			this.state		= NodeState.FIND;
-			this.cid       	= msg.cid;
-			this.best_node 	= msg.src; 					// to convergecast.
-			this.min_weight = Double.POSITIVE_INFINITY;	// to convergecast.
-			
-			// Starting the tests.
-			if (!this.startSendTestMessage()) {
-				if (this.can_report())
-					this.sendReportMessage();
-			}
-		}
+		if (this.state == NodeState.FIND)		
+			this.test();
 	}
 	
 	/**
 	 * 
 	 * @param msg
 	 */
-	private void handleTestMessage(TestMessage msg) {
-		ComponentID rcvd_cid, own_cid;
-		int i = 0;
-		
-		rcvd_cid = msg.cid;
-		own_cid  = this.cid;
-		
-		if (rcvd_cid == this.cid) {	// Nodes are in same component.
-			this.send(new AnswerMessage(false, this), msg.src);
-			
-			// Marking the edge as rejected.
-			while (i < this.edge_list.length && 
-				   rcvd_cid.core == this.edge_list[i].weight)
-				i++;
-			
-			if (i < this.edge_list.length)
-				this.status[i] = EdgeStatus.REJECTED;
-				
+	private void handleTestMessage(TestMessage msg) {		
+		if (msg.cid.level > this.cid.level) {
+			System.out.println("- Message going to second inbox.");
+			this.sec_inbox.add(msg);
 			
 		} else {
-			if (rcvd_cid.level <= own_cid.level)
-				this.send(new AnswerMessage(true, this), msg.src);		
-			else // Can not respond yet.
-				this.test_queue.add(msg);
+			if (msg.cid.core != this.cid.core) {	// Nodes are in same component.
+				this.sendMsg(new AnswerMessage(true, this), msg.src);
+				
+			} else {				
+				// Marking the edge as rejected.
+				int i = this.getIndexOfEdgeTo(msg.get_srcID());
+				if (i >= 0)
+					this.turnEdgeRejected(i);	
+
+				this.sendMsg(new AnswerMessage(false, this), msg.src);
+			}
 		}	
 	}
-	
+		
 	/**
 	 * 
 	 * @param msg
 	 */
 	private void handleAnswerMessage(AnswerMessage msg) {
-		int src;
 		WeightedBidirectionalEdge min_edge;
 		
-		src = msg.get_srcID();
-		if (this.edge_list[this.index_testing_edge].endNode.ID == src) {
-			// Node is not in the same component.
-			if (msg.accepted) {				
-				min_edge = this.edge_list[this.index_testing_edge];
-				if (min_edge.weight < this.min_weight)
-					this.min_weight = min_edge.weight;
-
-				this.wait_list.remove(0); // Own ID will be in first index.
-				this.callReportCheck();
-				
-			} else {
-				this.status[this.index_testing_edge] = EdgeStatus.REJECTED;  // COLORIR ARESTAS !!!!
-				
-				// More edges to verify.
-				if (!this.sendNextTestMessage()) {
-					// All neighboors are in the same component.
-					this.wait_list.remove(0); // Own ID will be in first index.
-					this.callReportCheck();
-				}
+		// Node is not in the same component.
+		if (msg.accepted) {		
+			System.out.println("Node " + this.ID + 
+					 		   " received an Accept from Node " + msg.get_srcID());
+			
+			min_edge = this.edge_list[i_testing_edge];
+			if (min_edge.weight < this.min_weight) {
+				System.out.println("Node " + this.ID + " w_min: " + 
+								   this.min_weight +  " -> " + min_edge.weight);
+				this.i_best_edge = i_testing_edge;
+				this.min_weight  = min_edge.weight; 
 			}
+			
+			this.isTesting = false;
+			this.report();
+			
+		} else {
+			System.out.println("Node " + this.ID + 
+			 		   		   " received a Reject from Node " + msg.get_srcID());
+			this.turnEdgeRejected(this.i_testing_edge);
+			this.test();			
 		}
 	}	
 	
@@ -177,18 +187,36 @@ public class GHSNode extends Node{
 	 * @param msg
 	 */
 	private void handleReportMessage(ReportMessage msg) {
-		int src, pos;
+		int src = msg.get_srcID();
+		if (src != this.in_node.ID) { 
+			this.find_count--;
+			if (msg.min_weight < this.min_weight) {
+				System.out.println("Node " + this.ID + " w_min: " + 
+						   this.min_weight +  " -> " + msg.min_weight);
 		
-		src = msg.get_srcID();
-		pos = this.checkWaitListFor(src);
-		
-		if (pos >= 0) {
-			if (msg.min_weight < this.min_weight)
 				this.min_weight = msg.min_weight;
+				this.i_best_edge = this.getIndexOfEdgeTo(src);
+			}
 			
-			this.wait_list.remove(pos);
-			this.callReportCheck();
-		}		
+			this.report();
+			
+		} else { // Nodes in core edge.
+			if (this.state == NodeState.FIND) {
+				System.out.println("- Message going to second inbox.");
+				this.sec_inbox.add(msg);
+				
+			} else {
+				//this.find_count--;
+				if (msg.min_weight > this.min_weight) {
+					this.isLeader = false;
+					this.changeroot();
+					
+				} else if (msg.min_weight == Double.POSITIVE_INFINITY &&
+					this.min_weight == Double.POSITIVE_INFINITY) {
+					System.out.println("End");
+				}
+			}
+		}			
 	}
 		
 	/**
@@ -196,31 +224,7 @@ public class GHSNode extends Node{
 	 * @param msg
 	 */
 	private void handleCRMessage(ChangeRootMessage msg) {
-		WeightedBidirectionalEdge core_edge; // used to send connect message.
-		double new_core;
-		int i;
-		
-		new_core = msg.mwoe;
-		i = 0;
-		while (i < this.edge_list.length && 
-				new_core != this.edge_list[i].weight)
-			i++;
-		
-		// MWOE is one of its edge.
-		if (i < this.edge_list.length) {
-			core_edge = this.edge_list[i]; // Bidirectional = 2 edges.
-			this.send(new ConnectMessage(this.cid.level, core_edge, this), 
-					core_edge.endNode);	
-			this.checkConnQueue();
-			
-		} else {
-			// Forwarding the message.
-			for (GHSNode node : this.best_nodes) {
-				if (node.ID != msg.get_srcID()) {
-					this.send(msg, node);
-				}
-			}
-		}
+		this.changeroot();
 	}
 	
 	/**
@@ -229,58 +233,114 @@ public class GHSNode extends Node{
 	 */
 	private void handleConnectMessage(ConnectMessage msg) {
 		int i, srcID;
+		ComponentID new_cid;
 		
 		srcID = msg.get_srcID();
+		i = this.getIndexOfEdgeByWeight(msg.edge_weight);
 		
-		i = 0;
-		while (i < this.edge_list.length && 
-				   srcID == this.edge_list[i].endNode.ID)
-				i++;
-				
-		if (msg.level == this.cid.level) {
-			// MWOE in common.
-			if (msg.edge_weight == this.edge_to_conn) {	// MERGE.
-				System.out.println("Merge between " + this.cid.toString() + 
-								   " (Node " + this.ID + ") " + " and " + 
-								   msg.src.cid.toString() + " (Node " + 
-								   msg.src.ID + ").");
-				
-				this.status[i] = EdgeStatus.BRANCH;
-				this.best_nodes.add(msg.src);
-				
-				// New leader.
-				if (this.ID > srcID) {
-					this.isLeader = true;
-					this.cid = new ComponentID(this.edge_list[i].weight, 
-											   this.cid.level+1);
-					this.checkConnQueue();
-					this.state = NodeState.FIND;
-					this.sendInitMessages();
-					this.startSendTestMessage();	
-				}
-				
-			} else {
-				this.conn_queue.add(msg);
-			}
-			
-		} else if (msg.level < this.cid.level) {		// ABSORPTION.
+		if (msg.level < this.cid.level) { // ABSORPTION
 			System.out.println("Absorption between " + this.cid.toString() +
 					           " (Node " + this.ID + ") " + " and " +
-			           		   " and " + msg.src.cid.toString() + " (Node " + 
-							   msg.src.ID + ").");
-			
-			this.status[i] = EdgeStatus.BRANCH;
-			this.best_nodes.add(msg.src);
+			           		   msg.src.cid.toString() + " (Node " + 
+							   msg.src.ID + ")");
+	
+			this.turnEdgeBranch(i);
+			this.sendMsg(new InitiateMessage(this.cid, this), msg.src);
 			
 			// Did not reported yet.
 			if (this.state == NodeState.FIND)
-				this.wait_list.add(srcID);
+				this.find_count++;
 			
-			this.send(new InitiateMessage(this.cid, this), msg.src);		
+		} else { 	
+			if (this.status[i] == EdgeStatus.UNKNOWN) { 
+				System.out.println("- Message going to second inbox.");
+				this.sec_inbox.add(msg);
+
+			} else {	// MERGE
+				System.out.println("Merge between " + this.cid.toString() + 
+						   " (Node " + this.ID + ") " + " and " + 
+						   msg.src.cid.toString() + " (Node " + 
+						   msg.src.ID + ")");
+
+				// New leader.
+				this.isLeader = (this.ID > srcID);
+				
+				new_cid = new ComponentID(this.edge_list[i].weight, 
+				   	  					  this.cid.level+1);
+				
+				this.state = NodeState.FIND;
+				this.sendMsg(new InitiateMessage(new_cid, this), 
+							 this.edge_list[i].endNode);
+			}
+		}
+	}
+	
+	/**
+	 * 
+	 * @param msg
+	 * @param dst
+	 */
+	private void sendMsg(Message msg, Node dst) {
+		System.out.println("Node " + this.ID + " sending a " + 
+				   msg.getClass().getSimpleName() + " to Node " + dst.ID);
+		this.send(msg, dst);
+	}
+	
+	/**
+	 * 
+	 * @param newID
+	 */
+	private void changeCompID(ComponentID newID) {
+		System.out.println("Node " + this.ID + " changing CID from " + 
+						   this.cid.toString() + " to " + newID.toString());
+		this.cid = newID;
+	}
+	
+	/**
+	 * 
+	 */
+	private void test() {
+		int i = this.i_testing_edge;
+		if (i < 0) 
+			i = 0;
+		
+		while (i < this.status.length && this.status[i] != EdgeStatus.UNKNOWN)
+			i++;
+		
+		if (i != this.status.length) {
+			this.isTesting = true;
+			this.i_testing_edge = i;
+			this.sendMsg(new TestMessage(this.cid, this), this.edge_list[i].endNode);
 			
 		} else {
-			this.conn_queue.add(msg);
+			this.isTesting = false;
+			this.report();
+		}			
+	}
+	
+	/**
+	 * 
+	 */
+	private void report() {
+		if (this.find_count == 0 && !this.isTesting) {
+			this.isLeader = false;
+			this.state = NodeState.FOUND;
+			this.sendMsg(new ReportMessage(this.min_weight, this), this.in_node);
 		}		
+	}
+	
+	private void changeroot() {
+		WeightedBidirectionalEdge best_edge;
+		best_edge = this.edge_list[this.i_best_edge];
+		
+		if (this.status[this.i_best_edge] == EdgeStatus.BRANCH) {
+			this.isLeader = false;
+			this.sendMsg(new ChangeRootMessage(this.min_weight, this), 
+					 	 best_edge.endNode);
+			
+		} else { // MWOE is one of the leader's.
+			this.sendConnectMessage(best_edge, best_edge.endNode);
+		}
 	}
 	
 	/**
@@ -288,171 +348,69 @@ public class GHSNode extends Node{
 	 * @param nodeID
 	 * @return
 	 */
-	private int checkWaitListFor(int nodeID) {
+	private int getIndexOfEdgeTo(int nodeID) {
 		int i = 0;
-		// Checks if the node is in the waiting list.
-		while (i < this.wait_list.size() && this.wait_list.get(i) != nodeID)
+		while (i < this.edge_list.length && this.edge_list[i].endNode.ID != nodeID)
 			i++;
 		
-		if (i == this.wait_list.size())
-			i = -1; // Not found.
-				
+		if (i == this.edge_list.length)
+			i = -1;
+		
 		return i;
 	}
 	
-	/**
-	 * 
-	 */
-	private void leaderReport() {
-		double new_core;
-		int i;
-		
-		// New core edge to update component id.
-		new_core = this.min_weight;
-		
-		if (new_core == Double.POSITIVE_INFINITY) {
-			System.out.println("END");
-			
-		} else {
-			this.isLeader = false;
-					
-			i = 0;
-			while (i < this.edge_list.length &&
-				   new_core != this.edge_list[i].weight)
+	private int getIndexOfEdgeByWeight(double e_weigth) {
+		int i = 0;
+		while (i < this.edge_list.length && 
+				   e_weigth != this.edge_list[i].weight)
 				i++;
-			
-			if (i < this.edge_list.length) {
-				this.sendConnectMessage(new_core, this.edge_list[i].endNode);
-				
-			} else {
-				// Sending change root messages to update nodes comp id.
-				for (GHSNode node: this.best_nodes)
-					this.send(new ChangeRootMessage(new_core, this), node);
-			}
-		}
 		
-	}
-
-	/**
-	 * 
-	 */
-	private void checkTestQueue() {
-		List<TestMessage> temp = new ArrayList<TestMessage>();
-		
-		while (!this.test_queue.isEmpty()) {
-			temp.add(this.test_queue.remove(0));
-		}
-		
-		for (TestMessage msg: temp) {
-			this.handleTestMessage(msg);
-		}
-	}
-	
-	/**
-	 * 
-	 */
-	private void checkConnQueue() {
-		List<ConnectMessage> temp = new ArrayList<ConnectMessage>();
-		
-		while (!this.conn_queue.isEmpty()) {
-			temp.add(this.conn_queue.remove(0));
-		}
-		
-		for (ConnectMessage msg: temp) {
-			this.handleConnectMessage(msg);
-		}
-	}
-	
-	/**
-	 * 
-	 */
-	private void startNewPhase() {
-		this.sendInitMessages();
-		if (!this.startSendTestMessage()) {
-			// FIM.
-		}
-	}
-	
-	/**
-	 * 
-	 */
-	private void sendInitMessages() {
-		for (GHSNode node: this.best_nodes)
-			this.send(new InitiateMessage(this.cid, this), node);
-	}
-	
-	/**
-	 * 
-	 * @return
-	 */
-	private int getNextUnknownEdgeIndex() {
-		int i = this.index_testing_edge;
-		while (i < this.status.length && this.status[i] != EdgeStatus.UNKNOWN)
-			i++;
-		
-		if (i == this.status.length)
+		if (i == this.edge_list.length)
 			i = -1;
 		return i;
 	}
 	
 	/**
 	 * 
-	 * @return
+	 * @param index
 	 */
-	private boolean startSendTestMessage() {
-		this.index_testing_edge = 0;
-		return this.sendNextTestMessage();
-	}
-	
-	/**
-	 * 
-	 * @return
-	 */
-	private boolean sendNextTestMessage() {
-		int i = this.getNextUnknownEdgeIndex();
-		if (i > 0){
-			this.index_testing_edge = i;
-			this.send(new TestMessage(this.cid, this), this.edge_list[i].endNode);
-		}
-		return (i > 0);
-	}
-	
-	/**
-	 * 
-	 */
-	private void callReportCheck() {
-		if (this.can_report()) {	
-			if (this.isLeader)
-				this.leaderReport();		
-			else
-				this.sendReportMessage();			
+	private void turnEdgeBranch(int index) {	
+		if (this.status[index] == EdgeStatus.UNKNOWN) {
+			this.status[index] = EdgeStatus.BRANCH;
+			this.edge_list[index].changeStatus(EdgeStatus.BRANCH); // just for vis.
+			System.out.println("Node "+ this.ID +" adding:" + 
+					   this.edge_list[index].weight);
 		}
 	}
 	
 	/**
 	 * 
-	 * @return
+	 * @param index
 	 */
-	private boolean can_report() {
-		return this.wait_list.isEmpty();
+	private void turnEdgeRejected(int index) {
+		if (this.status[index] == EdgeStatus.UNKNOWN) {
+			this.status[index] = EdgeStatus.REJECTED;
+			this.edge_list[index].changeStatus(EdgeStatus.REJECTED); // just for vis.
+			
+			System.out.println("Node "+ this.ID +" rejecting:" + 
+					   this.edge_list[index].weight);
+		}
 	}
-	
-	/**
-	 * 
-	 */
-	private void sendReportMessage() {
-		this.send(new ReportMessage(this.min_weight, this), this.best_node);
-		this.state = NodeState.FOUND;
-	}
-	
+		
 	/**
 	 * 
 	 * @param mwoe
 	 * @param dst
 	 */
-	private void sendConnectMessage(double mwoe, Node dst) {
-		this.send(new ConnectMessage(this.cid.level, mwoe, this), dst);
-		this.edge_to_conn = mwoe;
+	private void sendConnectMessage(WeightedBidirectionalEdge mwoe, Node dst) {
+		this.sendMsg(new ConnectMessage(this.cid.level, mwoe.weight, this), dst);
+		
+		int i = 0;
+		while (i < this.edge_list.length && mwoe != this.edge_list[i])
+				i++;
+		
+		if (i != this.edge_list.length)
+			this.turnEdgeBranch(i);
 	}
 	
 
@@ -461,31 +419,29 @@ public class GHSNode extends Node{
 
 	@Override
 	public void init() {
-		StartTimer timer = new StartTimer(); 
-		timer.set(this);
+		this.sec_inbox = new ArrayList<Message>();
+		//StartTimer timer = new StartTimer(); 
+		//timer.set(this);
 		this.state = NodeState.SLEEPING;
 	}
 	
 	/**
 	 * 
 	 */
-	public void real_init() {
+	public void wake_up() {
 		WeightedBidirectionalEdge wbe, temp, mwoe;
 		int i;
 		
-		this.best_node 			= null;
-		this.isLeader    		= true;
-		this.index_testing_edge = 0;
-		
-		this.best_nodes = new ArrayList<GHSNode>();
-		this.wait_list  = new ArrayList<Integer>();
-		this.test_queue = new ArrayList<TestMessage>();
-		this.conn_queue = new ArrayList<ConnectMessage>();
+		this.in_node 		= null;
+		this.i_testing_edge = -1;
+		this.find_count		= 0;
+		this.isTesting		= false;
 		
 		// Initializing the ordered edge list and the status.
 		int num_edges  = this.outgoingConnections.size();
 		this.edge_list = new WeightedBidirectionalEdge[num_edges];
 		this.status    = new EdgeStatus[num_edges];
+		
 		// Sorting edge list.
 		for (Edge e : this.outgoingConnections) {
 			wbe = (WeightedBidirectionalEdge) e;
@@ -510,10 +466,11 @@ public class GHSNode extends Node{
 		for (i = 0; i < this.status.length; i++)
 			this.status[i] = EdgeStatus.UNKNOWN;
 		
+		this.turnEdgeBranch(0);
 		mwoe = this.edge_list[0];
 		this.state = NodeState.FOUND;
 		this.cid = new ComponentID(mwoe, 0);
-		this.sendConnectMessage(mwoe.weight, mwoe.endNode);
+		this.sendMsg(new ConnectMessage(0, mwoe, this), mwoe.endNode);
 		this.isLeader = false;
 	}
 
@@ -538,6 +495,11 @@ public class GHSNode extends Node{
 		String text = " " + Integer.toString(this.ID) + " " + this.state.toString().substring(0, 2);			
 		// Draw the node as a circle with the text inside
 		super.drawNodeAsDiskWithText(g, pt, highlight, text, 22, Color.BLACK);
+	}
+	
+	@Override
+	public String toString() {
+		return "Node " + this.ID + " \nCID:" + this.cid.toString();
 	}
 
 }
