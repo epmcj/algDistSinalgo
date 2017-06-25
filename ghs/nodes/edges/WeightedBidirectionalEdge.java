@@ -1,6 +1,7 @@
 package projects.ghs.nodes.edges;
 
 import java.awt.Graphics;
+import java.text.DecimalFormat;
 
 import projects.ghs.CustomGlobal;
 import projects.ghs.LogL;
@@ -35,9 +36,12 @@ public class WeightedBidirectionalEdge extends BidirectionalEdge {
 		this.status = EdgeStatus.UNKNOWN;
 	}
 	
+	/**
+	 * Change edge status.
+	 * @param new_status New edge status.
+	 */
 	public void changeStatus(EdgeStatus new_status) {
 		this.status = new_status;
-		System.out.println("Edge " + Double.toString(this.weight) + ": " + this.status.toString());
 	}
 	
 	@Override
@@ -56,8 +60,7 @@ public class WeightedBidirectionalEdge extends BidirectionalEdge {
 		if((this.numberOfMessagesOnThisEdge == 0)&&
 				(this.oppositeEdge != null)&&
 				(this.oppositeEdge.numberOfMessagesOnThisEdge > 0)){
-			// only draws the arrowHead (if drawArrows is true) - the line is drawn by the 'opposite' edge
-			//Arrow.drawArrowHead(fromX, fromY, pt.guiX, pt.guiY, g, pt, getColor());
+			
 			g.setColor(getColor());
 			
 			if (this.status == EdgeStatus.BRANCH)
@@ -69,7 +72,6 @@ public class WeightedBidirectionalEdge extends BidirectionalEdge {
 			
 		} else {
 			if(numberOfMessagesOnThisEdge > 0) {
-				//Arrow.drawArrow(fromX, fromY, pt.guiX, pt.guiY, g, pt, getColor());
 				g.setColor(getColor());
 				
 				if (this.status == EdgeStatus.BRANCH)
@@ -79,7 +81,6 @@ public class WeightedBidirectionalEdge extends BidirectionalEdge {
 				else
 					Arrow.drawArrow(fromX, fromY, pt.guiX, pt.guiY, g, pt, getColor());
 			} else {
-				//Arrow.drawArrow(fromX, fromY, pt.guiX, pt.guiY, g, pt, getColor());
 				g.setColor(getColor());
 				
 				if (this.status == EdgeStatus.BRANCH)
@@ -90,6 +91,7 @@ public class WeightedBidirectionalEdge extends BidirectionalEdge {
 					Arrow.drawArrow(fromX, fromY, pt.guiX, pt.guiY, g, pt, getColor());
 			}
 		}
-		g.drawString(Double.toString(this.weight), (fromX + pt.guiX)/2, (fromY + pt.guiY)/2);
+		DecimalFormat df = new DecimalFormat("#.00");
+		g.drawString(df.format(this.weight), (fromX + pt.guiX)/2, (fromY + pt.guiY)/2);
 	}
 }

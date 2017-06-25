@@ -73,13 +73,13 @@ public class CustomGlobal extends AbstractCustomGlobal{
 	
 	public static List<List<Node>> connections;
 	public static List<Double> edge_weights;
-	public static double prob = 0.3;
+	public static final double prob = 0.3; 	// Probability for a edge to be added.
+	public static final int numNodes = 15;	// Number of nodes in the simulation.
 	
 	/*
 	 * Initializes the simulation.
 	 */
 	public void preRun() {
-		int numNodes = 15;
 		String nodeTypeName = "ghs:GHSNode";
 		String distributionModelName = "Circle";
 		

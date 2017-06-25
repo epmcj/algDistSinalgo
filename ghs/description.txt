@@ -1,7 +1,9 @@
-This is the template project.
+Implementation of GHS algorithm.
 
-Copy this folder and rename it to start a new project. If this description
-appears for a project that is not the template description then the 
-description has not yet been written. Please describe the project in 
-the description.txt stored in the project root folder of this
-project.
+Considers that 
+- the network is connected,
+- links eventually deliver messages, in order and without failures,
+- nodes know the weight of each incident link and
+- links have unique weights.
+
+
